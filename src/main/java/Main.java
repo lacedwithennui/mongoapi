@@ -86,6 +86,7 @@ public class Main {
                 return response.body();
             }
         };
+        Spark.port(8080);
         Spark.get("/db/:uname/posts/:date", routeDate);
         Spark.get("/db/:uname/posts", routeAll);
         Spark.get("/db/:uname/images/:oidString", routeImage);
