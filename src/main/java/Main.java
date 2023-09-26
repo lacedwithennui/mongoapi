@@ -60,7 +60,7 @@ public class Main {
                 if(validUname(request.params("uname"))) {
                     response.status(200);
                     JSONObject json = new JSONObject(request.body());
-                    String id = Mongo.putImage(json.get("data").toString(), json.get("fileName").toString());
+                    String id = Mongo.putImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured"));
                     response.body("{\"uploadedID\": \"" + id + "\"}");
                 }
                 else {

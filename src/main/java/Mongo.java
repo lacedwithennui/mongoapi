@@ -21,6 +21,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
+import com.mongodb.client.gridfs.model.GridFSFile;
+import com.mongodb.client.gridfs.model.GridFSUploadOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.InsertOneResult;
 
@@ -76,10 +78,11 @@ public class Mongo {
             MongoDatabase db = client.getDatabase("mightyPirates");
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            GridFSFile fileToDownload = bucket.find(Filters.eq("_id", new BsonObjectId(new ObjectId(oid)))).first();
             bucket.downloadToStream(new ObjectId(oid), outputStream);
 
             String imageb64 = outputStream.toString();
-            return "{\"fileName\": \"" + bucket.find(Filters.eq("_id", new BsonObjectId(new ObjectId(oid)))).first().getFilename() + "\",\"data\": \"" + imageb64 + "\"}";
+            return "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\":" + fileToDownload.getMetadata().get("featured") + "\"data\": \"" + imageb64 + "\"}";
         }
         catch (Exception e) {
             System.out.println(e);
@@ -93,12 +96,13 @@ public class Mongo {
      * @param fileName the filename to associate with the file, i.e. "file.jpeg"
      * @return the hex string _id of the inserted image
      */
-    public static String putImage(String imageb64, String fileName) {
+    public static String putImage(String imageb64, String fileName, Boolean featured) {
         try {
             MongoDatabase db = client.getDatabase("mightyPirates");
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
+            GridFSUploadOptions options = new GridFSUploadOptions().metadata(new Document("featured", featured));
             InputStream baseStream = new ByteArrayInputStream(imageb64.getBytes(StandardCharsets.UTF_8));
-            ObjectId id = bucket.uploadFromStream(fileName, baseStream);
+            ObjectId id = bucket.uploadFromStream(fileName, baseStream, options);
             return id.toHexString();
         }
         catch(Exception e) {
