@@ -85,6 +85,7 @@ public class Mongo {
             return "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\":" + fileToDownload.getMetadata().get("featured") + ", \"data\": \"" + imageb64 + "\"}";
         }
         catch (Exception e) {
+            e.printStackTrace();
             System.out.println(e);
             return "";
         }
