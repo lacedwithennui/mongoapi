@@ -82,7 +82,7 @@ public class Mongo {
             bucket.downloadToStream(new ObjectId(oid), outputStream);
 
             String imageb64 = outputStream.toString();
-            return "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\":" + fileToDownload.getMetadata().get("featured") + "\"data\": \"" + imageb64 + "\"}";
+            return "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\":" + fileToDownload.getMetadata().get("featured") + ", \"data\": \"" + imageb64 + "\"}";
         }
         catch (Exception e) {
             System.out.println(e);
