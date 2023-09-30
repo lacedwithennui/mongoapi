@@ -21,6 +21,8 @@ public class Main {
                     response.status(401);
                     response.body("{'error': '401: You do not have authorization to view this information.'}");
                 }
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };
@@ -36,6 +38,8 @@ public class Main {
                     response.status(401);
                     response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
                 }
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };
@@ -51,6 +55,8 @@ public class Main {
                     response.status(401);
                     response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
                 }
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };
@@ -60,7 +66,6 @@ public class Main {
                 if(validUname(request.params("uname"))) {
                     response.status(200);
                     JSONObject json = new JSONObject(request.body());
-                    System.out.println(json.getBoolean("featured"));
                     String id = Mongo.putImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured"));
                     response.body("{\"uploadedID\": \"" + id + "\"}");
                 }
@@ -68,6 +73,8 @@ public class Main {
                     response.status(401);
                     response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
                 }
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };
@@ -84,6 +91,8 @@ public class Main {
                     response.status(401);
                     response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
                 }
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };

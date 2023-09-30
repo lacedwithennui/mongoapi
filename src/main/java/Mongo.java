@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import org.bson.BsonArray;
 import org.bson.BsonObjectId;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.json.JSONArray;
 
@@ -14,11 +15,7 @@ import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.ServerApi;
 import com.mongodb.ServerApiVersion;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.*;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSFile;
@@ -101,9 +98,22 @@ public class Mongo {
         try {
             MongoDatabase db = client.getDatabase("mightyPirates");
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
+            MongoCollection<Document> imagesCollection = db.getCollection("images.files");
             GridFSUploadOptions options = new GridFSUploadOptions().metadata(new Document("featured", featured));
             InputStream baseStream = new ByteArrayInputStream(imageb64.getBytes(StandardCharsets.UTF_8));
             ObjectId id = bucket.uploadFromStream(fileName, baseStream, options);
+            GridFSFile inserted = bucket.find(Filters.eq("_id", new BsonObjectId(id))).first();
+            Bson query = Filters.and(
+                    Filters.eq("filename", fileName),
+                    Filters.eq("length", inserted.getLength()),
+                    Filters.eq("metadata.featured", featured)
+            );
+            System.out.println(inserted.getMetadata().hashCode());
+            long count = imagesCollection.countDocuments(query);
+            if(count > 1) {
+                bucket.delete(id);
+            }
+            id = bucket.find(query).first().getObjectId();
             return id.toHexString();
         }
         catch(Exception e) {
