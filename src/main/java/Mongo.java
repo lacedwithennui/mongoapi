@@ -3,8 +3,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Random;
+import java.util.Set;
 
 import org.bson.BsonArray;
+import org.bson.BsonDateTime;
 import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -15,12 +19,17 @@ import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.ServerApi;
 import com.mongodb.ServerApiVersion;
-import com.mongodb.client.*;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSFile;
 import com.mongodb.client.gridfs.model.GridFSUploadOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.InsertOneResult;
 
 public class Mongo {
@@ -108,7 +117,6 @@ public class Mongo {
                     Filters.eq("length", inserted.getLength()),
                     Filters.eq("metadata.featured", featured)
             );
-            System.out.println(inserted.getMetadata().hashCode());
             long count = imagesCollection.countDocuments(query);
             if(count > 1) {
                 bucket.delete(id);
@@ -145,5 +153,69 @@ public class Mongo {
             System.out.println(e);
             return "Error" + e;
         }
+    }
+
+    public static boolean checkCredentials(String uname, String pword) {
+        boolean valid = false;
+        try {
+            MongoDatabase db = client.getDatabase("mightyPirates");
+            MongoCollection<Document> auth = db.getCollection("auth");
+            Document creds = auth.find().first();
+            Set<String> keys = creds.keySet();
+            keys.remove("_id");
+            keys.remove("activeSessions");
+            String[] keysArray = keys.toArray(new String[1]);
+            for(int i = 0; i < keysArray.length; i++) {
+                String person = keysArray[i];
+                if(!person.equals("_id")) {
+                    if(((Document) creds.get(person)).get("username").toString().equals(uname)) {
+                        if(((Document) creds.get(person)).get("password").toString().equals(pword)) {
+                            valid = true;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        return valid;
+    }
+
+    public static String createToken() {
+        Random generator = new Random();
+        String generatedString = generator.ints(97, 122 + 1)
+            .limit(8)
+            .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+            .toString();
+        try {
+            MongoDatabase db = client.getDatabase("mightyPirates");
+            MongoCollection<Document> auth = db.getCollection("auth");
+            auth.findOneAndUpdate(Filters.empty(), Updates.push("activeSessions",
+                    new Document("token", generatedString).append("dateTime", new BsonDateTime(new Date().getTime()))));
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+        return generatedString;
+    }
+
+    public static boolean checkToken(String token) {
+        boolean valid = false;
+        try {
+            MongoDatabase db = client.getDatabase("mightyPirates");
+            MongoCollection<Document> auth = db.getCollection("auth");
+            Document creds = auth.find().first();
+            ArrayList<Document> active = (ArrayList<Document>) creds.get("activeSessions");
+            for(Document session : active) {
+                if(session.get("token").equals(token)) {
+                    valid = true;
+                }
+            }
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+        return valid;
     }
 }
