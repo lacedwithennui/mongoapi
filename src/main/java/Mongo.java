@@ -33,18 +33,27 @@ import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.InsertOneResult;
 
 public class Mongo {
-    private static ConnectionString connectionString = Credentials.connectionString;
-    private static MongoClientSettings clientSettings = MongoClientSettings.builder().applyConnectionString(connectionString)
+    private ConnectionString connectionString = Credentials.connectionString;
+    private MongoClientSettings clientSettings = MongoClientSettings.builder().applyConnectionString(connectionString)
             .serverApi(ServerApi.builder().version(ServerApiVersion.V1).build()).build();
-    private static MongoClient client = MongoClients.create(clientSettings);
+    private MongoClient client = MongoClients.create(clientSettings);
+    private MongoDatabase db;
+
+    public Mongo() {
+        try {
+            this.db = client.getDatabase("mightyPirates");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * Gets all documents from the posts collection and puts them in an ArrayList.
      * @return an ArrayList of JSON strings from MongoDB
      */
-    public static ArrayList<String> getAllPosts() {
+    public ArrayList<String> getAllPosts() {
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
             FindIterable<Document> docs = db.getCollection("posts").find();
             ArrayList<String> docsJSON = new ArrayList<String>();
             docs.forEach(doc -> docsJSON.add(doc.toJson()));
@@ -61,9 +70,9 @@ public class Mongo {
      * @param dateString The datestring to search for formatted MMDDYY, i.e. 092123
      * @return The JSON string returned from the MongoDB posts collection
      */
-    public static String getPost(String dateString) {
+    public String getPost(String dateString) {
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> posts = db.getCollection("posts");
             String doc = posts.find(Filters.eq("dateString", dateString)).first().toJson();
             return doc;
@@ -79,9 +88,9 @@ public class Mongo {
      * @param oid the hex string _id of the image to get
      * @return a base64 encoded string image (WITH leading data URL format, i.e. "data:image/[format];base64,")
      */
-    public static String getImage(String oid) {
+    public String getImage(String oid) {
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             GridFSFile fileToDownload = bucket.find(Filters.eq("_id", new BsonObjectId(new ObjectId(oid)))).first();
@@ -103,9 +112,9 @@ public class Mongo {
      * @param fileName the filename to associate with the file, i.e. "file.jpeg"
      * @return the hex string _id of the inserted image
      */
-    public static String putImage(String imageb64, String fileName, Boolean featured) {
+    public String putImage(String imageb64, String fileName, Boolean featured) {
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
             MongoCollection<Document> imagesCollection = db.getCollection("images.files");
             GridFSUploadOptions options = new GridFSUploadOptions().metadata(new Document("featured", featured));
@@ -138,13 +147,13 @@ public class Mongo {
      * @param description a description of the day's meeting
      * @return the hex string _id of the inserted post document
      */
-    public static String putPost(String dateString, JSONArray imageIDs, String description) {
+    public String putPost(String dateString, JSONArray imageIDs, String description) {
         try {
             ArrayList<BsonObjectId> ids = new ArrayList<BsonObjectId>();
             for(int i = 0; i < imageIDs.length(); i++) {
                 ids.add(i, new BsonObjectId(new ObjectId(imageIDs.getString(i))));
             }
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> posts = db.getCollection("posts");
             InsertOneResult result = posts.insertOne(new Document("dateString", dateString).append("images", new BsonArray(ids)).append("description", description));
             return result.getInsertedId().asObjectId().getValue().toHexString();
@@ -161,10 +170,10 @@ public class Mongo {
      * @param pword the plaintext password string
      * @return true if the credentials are in the database and match with each other.
      */
-    public static boolean checkCredentials(String uname, String pword) {
+    public boolean checkCredentials(String uname, String pword) {
         boolean valid = false;
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> auth = db.getCollection("auth");
             Document creds = auth.find().first();
             Set<String> keys = creds.keySet();
@@ -192,14 +201,14 @@ public class Mongo {
      * Creates a random eight-character string that will serve as an access token for verified users.
      * @return the random eight-character access token.
      */
-    public static String createToken() {
+    public String createToken() {
         Random generator = new Random();
         String generatedString = generator.ints(97, 122 + 1)
             .limit(8)
             .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
             .toString();
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.push("activeSessions",
                     new Document("token", generatedString).append("dateTime", new BsonDateTime(new Date().getTime()))));
@@ -215,10 +224,10 @@ public class Mongo {
      * @param token the token to check
      * @return true if the token is stored in the database in an active session.
      */
-    public static boolean checkToken(String token) {
+    public boolean checkToken(String token) {
         boolean valid = false;
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> auth = db.getCollection("auth");
             Document creds = auth.find().first();
             ArrayList<Document> active = (ArrayList<Document>) creds.get("activeSessions");
@@ -237,9 +246,9 @@ public class Mongo {
     /**
      * Deletes any tokens from the active sessions array that are over 3 hours old.
      */
-    public static void deleteExpired() {
+    public void deleteExpired() {
         try {
-            MongoDatabase db = client.getDatabase("mightyPirates");
+            
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.pull("activeSessions",
                     Filters.lt("dateTime", new BsonDateTime(new Date().getTime() - 3 * 60 * 60 * 1000)))); // 3 * 60 * 60 * 1000 = 3 hours
