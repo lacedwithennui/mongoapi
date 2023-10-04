@@ -155,6 +155,12 @@ public class Mongo {
         }
     }
 
+    /**
+     * Checks whether the given credentials are stored in the database and if they match each other.
+     * @param uname the plaintext username string
+     * @param pword the plaintext password string
+     * @return true if the credentials are in the database and match with each other.
+     */
     public static boolean checkCredentials(String uname, String pword) {
         boolean valid = false;
         try {
@@ -182,6 +188,10 @@ public class Mongo {
         return valid;
     }
 
+    /**
+     * Creates a random eight-character string that will serve as an access token for verified users.
+     * @return the random eight-character access token.
+     */
     public static String createToken() {
         Random generator = new Random();
         String generatedString = generator.ints(97, 122 + 1)
@@ -200,6 +210,11 @@ public class Mongo {
         return generatedString;
     }
 
+    /**
+     * Checks whether the given token is associated with a valid active session from the database.
+     * @param token the token to check
+     * @return true if the token is stored in the database in an active session.
+     */
     public static boolean checkToken(String token) {
         boolean valid = false;
         try {
@@ -219,6 +234,9 @@ public class Mongo {
         return valid;
     }
 
+    /**
+     * Deletes any tokens from the active sessions array that are over 3 hours old.
+     */
     public static void deleteExpired() {
         try {
             MongoDatabase db = client.getDatabase("mightyPirates");
