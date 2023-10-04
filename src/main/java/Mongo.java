@@ -252,7 +252,6 @@ public class Mongo {
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.pull("activeSessions",
                     Filters.lt("dateTime", new BsonDateTime(new Date().getTime() - 3 * 60 * 60 * 1000)))); // 3 * 60 * 60 * 1000 = 3 hours
-            System.out.println("REMOVED ALL DOCUMENTS");
         }
         catch(Exception e) {
             e.printStackTrace();

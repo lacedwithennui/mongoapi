@@ -12,7 +12,6 @@ public class Routes {
         this.routeDate = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.type("json");
                 response.status(200);
                 response.body(mongo.getPost(request.params("date")));
                 response.header("Access-Control-Allow-Origin", "*");
@@ -23,7 +22,6 @@ public class Routes {
         this.routeAll = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.type("json");
                 response.status(200);
                 response.body("{\"posts\": " + mongo.getAllPosts().toString() + "}");
                 response.header("Access-Control-Allow-Origin", "*");
@@ -34,7 +32,6 @@ public class Routes {
         this.routeImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.type("json");
                 response.status(200);
                 response.body(mongo.getImage(request.params("oidString")));
                 response.header("Access-Control-Allow-Origin", "*");
@@ -58,9 +55,9 @@ public class Routes {
             @Override
             public Object handle(Request request, Response response) {
                 response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "POST");
-                response.header("Access-Control-Allow-Headers", "Authorization");
-                response.header("Access-Control-Allow-Credentials", "true");
+                // response.header("Access-Control-Allow-Methods", "POST");
+                // response.header("Access-Control-Allow-Headers", "Authorization");
+                // response.header("Access-Control-Allow-Credentials", "true");
                 mongo.deleteExpired();
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
@@ -98,9 +95,9 @@ public class Routes {
             public Object handle(Request request, Response response) {
                 response.status(200);
                 response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
-                response.header("Access-Control-Allow-Headers", "authorization");
-                response.header("Access-Control-Allow-Credentials", "true");
+                // response.header("Access-Control-Allow-Methods", "GET");
+                // response.header("Access-Control-Allow-Headers", "authorization");
+                // response.header("Access-Control-Allow-Credentials", "true");
                 mongo.deleteExpired();
                 try {
                     String creds = new String(Base64.getDecoder().decode(request.headers("authorization").substring("Basic ".length())));
@@ -125,9 +122,9 @@ public class Routes {
             public Object handle(Request request, Response response) {
                 mongo.deleteExpired();
                 response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
-                response.header("Access-Control-Allow-Headers", "authorization");
-                response.header("Access-Control-Allow-Credentials", "true");
+                // response.header("Access-Control-Allow-Methods", "GET");
+                // response.header("Access-Control-Allow-Headers", "authorization");
+                // response.header("Access-Control-Allow-Credentials", "true");
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                         response.status(200);
