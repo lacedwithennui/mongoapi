@@ -87,6 +87,7 @@ public class Main {
                 response.header("Access-Control-Allow-Methods", "POST");
                 response.header("Access-Control-Allow-Headers", "Authorization");
                 response.header("Access-Control-Allow-Credentials", "true");
+                Mongo.deleteExpired();
                 try {
                     if(Mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                         response.status(200);
@@ -111,7 +112,7 @@ public class Main {
             @Override
             public Object handle(Request request, Response response) {
                 response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "POST");
+                response.header("Access-Control-Allow-Methods", "*");
                 response.header("Access-Control-Allow-Headers", "Authorization");
                 response.header("Access-Control-Allow-Credentials", "true");
                 response.status(200);
@@ -126,14 +127,46 @@ public class Main {
                 response.header("Access-Control-Allow-Methods", "GET");
                 response.header("Access-Control-Allow-Headers", "authorization");
                 response.header("Access-Control-Allow-Credentials", "true");
+                Mongo.deleteExpired();
                 try {
                     String creds = new String(Base64.getDecoder().decode(request.headers("authorization").substring("Basic ".length())));
                     String uname = creds.split(":")[0];
                     String pword = creds.split(":")[1];
-                    return Mongo.checkCredentials(uname, pword) ? "{\"token\": \"" + Mongo.createToken() + "\"}" : "{\"error\": \"401: Wrong username or password.\"}";
+                    if(Mongo.checkCredentials(uname, pword)) {
+                        return "{\"token\": \"" + Mongo.createToken() + "\"}";
+                    }
+                    else {
+                        response.status(401);
+                        return "{\"error\": \"401: Wrong username or password.\"}";
+                    }
                 }
                 catch(Exception e) {
                     e.printStackTrace();
+                    return "{\"error\": \"" + e.getMessage() + "\"}";
+                }
+            }
+        };
+        Route routeAuthCheck = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                Mongo.deleteExpired();
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
+                response.header("Access-Control-Allow-Headers", "authorization");
+                response.header("Access-Control-Allow-Credentials", "true");
+                try {
+                    if(Mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
+                        response.status(200);
+                        return "{\"status\": \"ok\"}";
+                    }
+                    else {
+                        response.status(401);
+                        return "{\"error\": \"401: Wrong username or password.\"}";
+                    }
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                    response.status(500);
                     return "{\"error\": \"" + e.getMessage() + "\"}";
                 }
             }
@@ -146,7 +179,9 @@ public class Main {
         Spark.post("/db/:uname/upload/posts", routeUploadPost);
         Spark.options("/db/:uname/upload/posts", routeOptions);
         Spark.get("/db/auths", routeAuth);
-        Spark.options("/db/auths", routeAuth);
+        Spark.options("/db/auths", routeOptions);
+        Spark.get("/db/auths/check", routeAuthCheck);
+        Spark.options("/db/auths/check", routeOptions);
     }
 
     public static boolean validUname(String uname) {
