@@ -1,5 +1,3 @@
-import java.util.Base64;
-
 import org.json.JSONObject;
 
 import spark.Request;
@@ -8,7 +6,8 @@ import spark.Route;
 
 public class Routes {
     public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck;
-    public Routes(Mongo mongo) {
+    public Routes(Mongo mongo, Crypto auth) {
+        // Returns the post that corresponds with the given date.
         this.routeDate = new Route() {
             @Override
             public Object handle(Request request, Response response) {
@@ -19,6 +18,7 @@ public class Routes {
                 return response.body();
             }
         };
+        // Returns all posts.
         this.routeAll = new Route() {
             @Override
             public Object handle(Request request, Response response) {
@@ -29,6 +29,7 @@ public class Routes {
                 return response.body();
             }
         };
+        // Returns the image that corresponds with the given oid.
         this.routeImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
@@ -39,6 +40,7 @@ public class Routes {
                 return response.body();
             }
         };
+        // Posts the given image to the database and returns the oid that it was uploaded at
         this.routeUploadImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
@@ -51,13 +53,11 @@ public class Routes {
                 return response.body();
             }
         };
+        // Uploads a post to the database and returns the oid that it was uploaded at
         this.routeUploadPost = new Route() {
             @Override
             public Object handle(Request request, Response response) {
                 response.header("Access-Control-Allow-Origin", "*");
-                // response.header("Access-Control-Allow-Methods", "POST");
-                // response.header("Access-Control-Allow-Headers", "Authorization");
-                // response.header("Access-Control-Allow-Credentials", "true");
                 mongo.deleteExpired();
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
@@ -79,6 +79,7 @@ public class Routes {
                 return response.body();
             }
         };
+        // Returns the preflight options for any route
         this.routeOptions = new Route() {
             @Override
             public Object handle(Request request, Response response) {
@@ -90,21 +91,20 @@ public class Routes {
                 return "";
             }
         };
+        // Checks whether the given encrypted username and password correspond with a user in the database.
+        // Returns a randomized access token to be stored in the browser cookies to authenticate.
         this.routeAuth = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.status(200);
-                response.header("Access-Control-Allow-Origin", "*");
-                // response.header("Access-Control-Allow-Methods", "GET");
-                // response.header("Access-Control-Allow-Headers", "authorization");
-                // response.header("Access-Control-Allow-Credentials", "true");
                 mongo.deleteExpired();
+                response.header("Access-Control-Allow-Origin", "*");
                 try {
-                    String creds = new String(Base64.getDecoder().decode(request.headers("authorization").substring("Basic ".length())));
+                    String creds = auth.decrypt(request.headers("authorization").substring("Basic ".length()));
                     String uname = creds.split(":")[0];
                     String pword = creds.split(":")[1];
-                    if(mongo.checkCredentials(uname, pword)) {
-                        return "{\"token\": \"" + mongo.createToken() + "\"}";
+                    if(mongo.checkCredentials(uname, pword) || mongo.checkCredentials(uname, pword)) {
+                        response.status(200);
+                        return "{\"token\": \"" + mongo.createToken(uname) + "\"}";
                     }
                     else {
                         response.status(401);
@@ -113,18 +113,17 @@ public class Routes {
                 }
                 catch(Exception e) {
                     e.printStackTrace();
+                    response.status(500);
                     return "{\"error\": \"" + e.getMessage() + "\"}";
                 }
             }
         };
+        // Checks whether the given access token is valid.
         this.routeAuthCheck = new Route() {
             @Override
             public Object handle(Request request, Response response) {
                 mongo.deleteExpired();
                 response.header("Access-Control-Allow-Origin", "*");
-                // response.header("Access-Control-Allow-Methods", "GET");
-                // response.header("Access-Control-Allow-Headers", "authorization");
-                // response.header("Access-Control-Allow-Credentials", "true");
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                         response.status(200);

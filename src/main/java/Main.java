@@ -1,8 +1,9 @@
 import spark.Spark;
 
 public class Main {
-    private static Mongo mongo = new Mongo();
-    private static Routes routes = new Routes(mongo);
+    private static Crypto crypto = new Crypto();
+    private static Mongo mongo = new Mongo(crypto);
+    private static Routes routes = new Routes(mongo, crypto);
     
     public static void main(String[] args) {
         Spark.port(8080);

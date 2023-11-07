@@ -38,8 +38,10 @@ public class Mongo {
             .serverApi(ServerApi.builder().version(ServerApiVersion.V1).build()).build();
     private MongoClient client = MongoClients.create(clientSettings);
     private MongoDatabase db;
+    private Crypto crypto;
 
-    public Mongo() {
+    public Mongo(Crypto crypto) {
+        this.crypto = crypto;
         try {
             this.db = client.getDatabase("mightyPirates");
         }
@@ -184,7 +186,7 @@ public class Mongo {
                 String person = keysArray[i];
                 if(!person.equals("_id")) {
                     if(((Document) creds.get(person)).get("username").toString().equals(uname)) {
-                        if(((Document) creds.get(person)).get("password").toString().equals(pword)) {
+                        if(this.crypto.decrypt(((Document) creds.get(person)).get("password").toString()).equals(this.crypto.saltedHash(pword, uname))) {
                             valid = true;
                         }
                     }
@@ -201,17 +203,19 @@ public class Mongo {
      * Creates a random eight-character string that will serve as an access token for verified users.
      * @return the random eight-character access token.
      */
-    public String createToken() {
+    public String createToken(String username) {
         Random generator = new Random();
+        long seed = generator.nextInt(10000) * username.hashCode();
+        generator.setSeed(seed);
         String generatedString = generator.ints(97, 122 + 1)
-            .limit(8)
+            .limit(16)
             .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
             .toString();
         try {
             
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.push("activeSessions",
-                    new Document("token", generatedString).append("dateTime", new BsonDateTime(new Date().getTime()))));
+                    new Document("token", generatedString).append("dateTime", new BsonDateTime(new Date().getTime())).append("username", username)));
         }
         catch(Exception e) {
             e.printStackTrace();
