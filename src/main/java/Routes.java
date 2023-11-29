@@ -44,10 +44,16 @@ public class Routes {
         this.routeUploadImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.status(200);
-                JSONObject json = new JSONObject(request.body());
-                String id = mongo.putImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured"));
-                response.body("{\"uploadedID\": \"" + id + "\"}");
+                if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
+                    JSONObject json = new JSONObject(request.body());
+                    String id = mongo.putImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured"));
+                    response.status(200);
+                    response.body("{\"uploadedID\": \"" + id + "\"}");
+                }
+                else {
+                    response.status(401);
+                    response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
+                }
                 response.header("Access-Control-Allow-Origin", "*");
                 response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
