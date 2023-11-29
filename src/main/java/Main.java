@@ -15,6 +15,7 @@ public class Main {
         Spark.get("/db/posts", routes.routeAll);
         Spark.get("/db/images/:oidString", routes.routeImage);
         Spark.post("/db/upload/images", routes.routeUploadImage);
+        Spark.options("/db/upload/images", routes.routeOptions);
         Spark.post("/db/upload/posts", routes.routeUploadPost);
         Spark.options("/db/upload/posts", routes.routeOptions);
     }
