@@ -6,7 +6,7 @@ public class Main {
     private static Routes routes = new Routes(mongo, crypto);
     
     public static void main(String[] args) {
-        Spark.port(8080);
+        Spark.port(5003);
         Spark.get("/db/auths", routes.routeAuth);
         Spark.options("/db/auths", routes.routeOptions);
         Spark.get("/db/auths/check", routes.routeAuthCheck);
