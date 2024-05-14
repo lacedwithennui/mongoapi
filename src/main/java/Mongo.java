@@ -29,8 +29,10 @@ import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSFile;
 import com.mongodb.client.gridfs.model.GridFSUploadOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.UpdateResult;
 
 public class Mongo {
     private ConnectionString connectionString = Credentials.connectionString;
@@ -38,12 +40,14 @@ public class Mongo {
             .serverApi(ServerApi.builder().version(ServerApiVersion.V1).build()).build();
     private MongoClient client = MongoClients.create(clientSettings);
     private MongoDatabase db;
+    private MongoDatabase notesDB;
     private Crypto crypto;
 
     public Mongo(Crypto crypto) {
         this.crypto = crypto;
         try {
             this.db = client.getDatabase("mightyPirates");
+            this.notesDB = client.getDatabase("notes");
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -138,7 +142,7 @@ public class Mongo {
         catch(Exception e) {
             System.out.println(e);
             // TODO: better error handling
-            return "Error" + e;
+            return "{\"error\": \"" + e + "\"}";
         }
     }
 
@@ -162,7 +166,100 @@ public class Mongo {
         }
         catch(Exception e) {
             System.out.println(e);
-            return "Error" + e;
+            return "{\"error\": \"" + e + "\"}";
+        }
+    }
+
+    public String putNote(String dateString, String fileName, String contentHTML, String uoid) {
+        try {
+            MongoCollection<Document> notes = notesDB.getCollection("notes");
+            MongoCollection<Document> users = notesDB.getCollection("users");
+            InsertOneResult result = notes.insertOne(
+                    new Document("dateString", dateString)
+                    .append("fileName", fileName)
+                    .append("contentHTML", contentHTML)
+                    .append("owner", new BsonObjectId(new ObjectId(uoid))));
+            String insertedID = result.getInsertedId().asObjectId().getValue().toHexString();
+            UpdateResult userResult = users.updateOne(Filters.eq(new BsonObjectId(new ObjectId(uoid))), Updates.addToSet("notes", new BsonObjectId(new ObjectId(insertedID))));
+            System.out.println(userResult.getMatchedCount());
+            return result.getInsertedId().asObjectId().getValue().toHexString();
+        }
+        catch(Exception e) {
+            System.out.println(e);
+            return "{\"error\": \"" + e + "\"}";
+        }
+    }
+
+    public String updateNote(String newContent, String oid) {
+        try {
+            MongoCollection<Document> notes = notesDB.getCollection("notes");
+            notes.updateOne(Filters.eq(new BsonObjectId(new ObjectId(oid))), Updates.set("contentHTML", newContent));
+            return "{\"oid\": \"" + oid + "\"}";
+        }
+        catch(Exception e) {
+            System.out.println(e);
+            return "{\"error\": \"" + e + "\"}";
+        }
+    }
+
+    public String getNote(String oid) {
+        try {
+            MongoCollection<Document> notes = notesDB.getCollection("notes");
+            String doc = notes.find(Filters.eq(new BsonObjectId(new ObjectId(oid)))).first().toJson();
+            return doc;
+        }
+        catch(Exception e) {
+            System.out.println(e);
+            return "";
+        }
+    }
+
+    public String renameNote(String oid, String newName) {
+        try {
+            MongoCollection<Document> posts = notesDB.getCollection("notes");
+            posts.updateOne(Filters.eq(new BsonObjectId(new ObjectId(oid))), Updates.set("fileName", newName));
+            return "{\"status\": \"success\"}";
+        }
+        catch(Exception e) {
+            System.out.println(e);
+            return "";
+        }
+    }
+
+    public String getAllNoteIDs(String uoid) {
+        try {
+            // Document doc = notesDB.getCollection("users").find(Filters.eq(new BsonObjectId(new ObjectId(uoid)))).first();
+            FindIterable<Document> allNotes = notesDB.getCollection("notes").find(Filters.eq("owner", new BsonObjectId(new ObjectId(uoid)))).projection(Projections.include("fileName"));
+            ArrayList<String> content = new ArrayList<String>();
+            allNotes.forEach((doc) -> {
+                content.add(doc.toJson());
+            });
+            String finalJSON = "{\"files\": [";
+            for (String object : content) {
+                finalJSON += object + ",";
+            }
+            finalJSON = finalJSON.substring(0, finalJSON.length() - 1); // remove trailing comma for valid json
+            finalJSON += "]}";
+            System.out.println(finalJSON);
+            return finalJSON;
+        }
+        catch(Exception e) {
+            System.out.println(e);
+            return "{\"error\": \"" + e + "\"}";
+        }
+    }
+
+    public String deleteNote(String oid) {
+        try {
+            MongoCollection<Document> notes = notesDB.getCollection("notes");
+            MongoCollection<Document> users = notesDB.getCollection("users");
+            notes.deleteOne(Filters.eq(new BsonObjectId(new ObjectId(oid))));
+            users.updateOne(Filters.eq("notes", new BsonObjectId(new ObjectId(oid))), Updates.pull("notes", new BsonObjectId(new ObjectId(oid))));
+            return "{\"status\": \"success\"}";
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            return "{\"error\": \"" + e + "\"}";
         }
     }
 
@@ -228,6 +325,7 @@ public class Mongo {
      * @param token the token to check
      * @return true if the token is stored in the database in an active session.
      */
+    @SuppressWarnings("unchecked")
     public boolean checkToken(String token) {
         boolean valid = false;
         try {

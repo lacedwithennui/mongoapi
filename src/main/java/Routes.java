@@ -5,7 +5,9 @@ import spark.Response;
 import spark.Route;
 
 public class Routes {
-    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck;
+    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeUploadNote,
+            routeAllFileOIDs, routeNote, routeRenameNote, routeUpdateNote, routeDeleteNote, routeOptions, routeAuth, routeAuthCheck;
+
     public Routes(Mongo mongo, Crypto auth) {
         // Returns the post that corresponds with the given date.
         this.routeDate = new Route() {
@@ -84,6 +86,86 @@ public class Routes {
                 }
                 return response.body();
             }
+        };
+        this.routeUploadNote = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.header("Access-Control-Allow-Origin", "*");
+                try {
+                    response.status(200);
+                    JSONObject json = new JSONObject(request.body());
+                    String id = mongo.putNote(json.getString("dateString"), json.getString("fileName"), json.getString("contentHTML"), json.getString("owner"));
+                    response.body("{\"uploadedID\": \"" + id + "\"}");
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                    response.body("{\"error\": \"" + e.getMessage() + "\"}");
+                }
+                return response.body();
+            }
+        };
+        this.routeAllFileOIDs = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.status(200);
+                response.body(mongo.getAllNoteIDs(request.params("uoid")));
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
+                return response.body();
+            }
+        };
+        this.routeNote = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.status(200);
+                response.body(mongo.getNote(request.params("oidString")));
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
+                return response.body();
+            }
+        };
+        this.routeRenameNote = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.status(200);
+                JSONObject json = new JSONObject(request.body());
+                response.body(mongo.renameNote(json.getString("oidString"), json.getString("newName")));
+                response.header("Access-Control-Allow-Origin", "*");
+                response.header("Access-Control-Allow-Methods", "GET");
+                return response.body();
+            }
+        };
+        this.routeUpdateNote = new Route() {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.header("Access-Control-Allow-Origin", "*");
+                try {
+                    response.status(200);
+                    JSONObject json = new JSONObject(request.body());
+                    String id = mongo.updateNote(json.getString("contentHTML"), json.getString("oidString"));
+                    response.body("{\"uploadedID\": \"" + id + "\"}");
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                    response.body("{\"error\": \"" + e.getMessage() + "\"}");
+                }
+                return response.body();
+            }
+        };
+        this.routeDeleteNote = new Route() {
+            public Object handle(Request request, Response response) {
+                response.header("Access-Control-Allow-Origin", "*");
+                response.status(200);
+                try {
+                    JSONObject json = new JSONObject(request.body());
+                    mongo.deleteNote(json.getString("oidString"));
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                    response.body("{\"error\": \"" + e.getMessage() + "\"}");
+                }
+                return response.body();
+            };
         };
         // Returns the preflight options for any route
         this.routeOptions = new Route() {

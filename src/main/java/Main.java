@@ -14,6 +14,12 @@ public class Main {
         Spark.get("/db/posts/:date", routes.routeDate);
         Spark.get("/db/posts", routes.routeAll);
         Spark.get("/db/images/:oidString", routes.routeImage);
+        Spark.get("/db/note/:oidString", routes.routeNote);
+        Spark.post("/db/upload/note", routes.routeUploadNote);
+        Spark.post("/db/note/rename", routes.routeRenameNote);
+        Spark.get("/db/notes/:uoid", routes.routeAllFileOIDs);
+        Spark.post("/db/update/note", routes.routeUpdateNote);
+        Spark.post("/db/delete/note", routes.routeDeleteNote);
         Spark.post("/db/upload/images", routes.routeUploadImage);
         Spark.options("/db/upload/images", routes.routeOptions);
         Spark.post("/db/upload/posts", routes.routeUploadPost);
