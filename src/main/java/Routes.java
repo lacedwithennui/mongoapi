@@ -91,7 +91,7 @@ public class Routes {
                         response = mongo.createToken(uname).asSparkResponse(response);
                     }
                     else {
-                        response = new httputils.Response().withCode(401).withAllowGetMethodHeader()
+                        response = httputils.Response.unauthorizedError()
                                 .withBody("{\"error\": \"Username and/or password are incorrect.\"}")
                                 .asSparkResponse(response);
                     }
