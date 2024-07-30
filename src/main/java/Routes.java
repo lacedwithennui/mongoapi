@@ -1,11 +1,14 @@
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import spark.Request;
 import spark.Response;
 import spark.Route;
+import spark.Spark;
+import spark.routematch.RouteMatch;
 
 public class Routes {
-    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck;
+    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck, routeEndpoints;
     public Routes(Mongo mongo, Crypto auth) {
         // Returns the post that corresponds with the given date.
         this.routeDate = new Route() {
@@ -126,6 +129,16 @@ public class Routes {
                     response = httputils.Response.defaultServerError(e).asSparkResponse(response);
                     return response.body();
                 }
+            }
+        };
+        this.routeEndpoints = new Route() {
+            public Object handle(Request request, Response response) {
+                JSONArray json = new JSONArray();
+                for(RouteMatch route : Spark.routes()) {
+                    json.put(new JSONObject().put("url", route.getMatchUri()).put("method", route.getHttpMethod()));
+                }
+                response = new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json.toString()).asSparkResponse(response);
+                return response.body();
             }
         };
     }
