@@ -14,7 +14,7 @@ public class Routes {
         this.routeDate = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response = mongo.getPost(request.params("date")).asSparkResponse(response);
+                mongo.getPost(request.params("date")).dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -22,7 +22,7 @@ public class Routes {
         this.routeAll = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response = mongo.getAllPosts().asSparkResponse(response);
+                mongo.getAllPosts().dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -30,7 +30,7 @@ public class Routes {
         this.routeImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response = mongo.getImage(request.params("oidString")).asSparkResponse(response);
+                mongo.getImage(request.params("oidString")).dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -40,10 +40,10 @@ public class Routes {
             public Object handle(Request request, Response response) {
                 if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                     JSONObject json = new JSONObject(request.body());
-                    response = mongo.postImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured")).asSparkResponse(response);
+                    mongo.postImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured")).dumpToSparkResponse(response);
                 }
                 else {
-                    response = httputils.Response.unauthorizedError().asSparkResponse(response);
+                    httputils.Response.unauthorizedError().dumpToSparkResponse(response);
                 }
                 return response.body();
             }
@@ -56,10 +56,10 @@ public class Routes {
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                         JSONObject json = new JSONObject(request.body());
-                        response = mongo.putPost(json.getString("dateString"), json.getJSONArray("images"), json.getString("description")).asSparkResponse(response);
+                        mongo.putPost(json.getString("dateString"), json.getJSONArray("images"), json.getString("description")).dumpToSparkResponse(response);
                     }
                     else {
-                        response = httputils.Response.unauthorizedError().asSparkResponse(response);
+                        httputils.Response.unauthorizedError().dumpToSparkResponse(response);
                     }
                 }
                 catch(Exception e) {
@@ -73,10 +73,10 @@ public class Routes {
         this.routeOptions = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response = new httputils.Response().withCode(200)
+                new httputils.Response().withCode(200)
                     .withAllowAllMethodsHeader()
                     .withHeader("Access-Control-Allow-Headers", "Authorization")
-                    .withHeader("Access-Control-Allow-Credentials", "true").asSparkResponse(response);
+                    .withHeader("Access-Control-Allow-Credentials", "true").dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -91,18 +91,18 @@ public class Routes {
                     String uname = creds.split(":")[0];
                     String pword = creds.split(":")[1];
                     if(mongo.checkCredentials(uname, pword) || mongo.checkCredentials(uname, pword)) {
-                        response = mongo.createToken(uname).asSparkResponse(response);
+                        mongo.createToken(uname).dumpToSparkResponse(response);
                     }
                     else {
-                        response = httputils.Response.unauthorizedError()
+                        httputils.Response.unauthorizedError()
                                 .withBody("{\"error\": \"Username and/or password are incorrect.\"}")
-                                .asSparkResponse(response);
+                                .dumpToSparkResponse(response);
                     }
                     return response.body();
                 }
                 catch(Exception e) {
                     e.printStackTrace();
-                    response = httputils.Response.defaultServerError(e).asSparkResponse(response);
+                    httputils.Response.defaultServerError(e).dumpToSparkResponse(response);
                     return response.body();
                 }
             }
@@ -114,19 +114,19 @@ public class Routes {
                 mongo.deleteExpired();
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
-                        response = new httputils.Response().withCode(200).asSparkResponse(response);
+                        new httputils.Response().withCode(200).dumpToSparkResponse(response);
                         return response.body();
                     }
                     else {
-                        response = httputils.Response.unauthorizedError()
+                        httputils.Response.unauthorizedError()
                                 .withBody("{\"error\": \"Your session is invalid. Please log in again.\"}")
-                                .asSparkResponse(response);
+                                .dumpToSparkResponse(response);
                         return response.body();
                     }
                 }
                 catch(Exception e) {
                     e.printStackTrace();
-                    response = httputils.Response.defaultServerError(e).asSparkResponse(response);
+                    httputils.Response.defaultServerError(e).dumpToSparkResponse(response);
                     return response.body();
                 }
             }
@@ -137,7 +137,7 @@ public class Routes {
                 for(RouteMatch route : Spark.routes()) {
                     json.put(new JSONObject().put("url", route.getMatchUri()).put("method", route.getHttpMethod()));
                 }
-                response = new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json.toString()).asSparkResponse(response);
+                new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json.toString()).dumpToSparkResponse(response);
                 return response.body();
             }
         };

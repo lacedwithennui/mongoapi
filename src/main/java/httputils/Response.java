@@ -1,6 +1,8 @@
 package httputils;
 import java.util.Hashtable;
 
+import org.json.JSONObject;
+
 public class Response {
     private int code;
     private String body;
@@ -14,7 +16,6 @@ public class Response {
      */
     public Response() {
         this(500, "", new Hashtable<>());
-        this.headers.put("Access-Control-Allow-Origin", "*");
     }
 
     /**
@@ -31,6 +32,7 @@ public class Response {
         this.code = code;
         this.body = body;
         this.headers = headers;
+        this.withAllowOriginAllHeader().withContentTypeJSONHeader();
     }
 
     /**
@@ -39,28 +41,39 @@ public class Response {
      * @return the Response object with the new response code.
      */
     public Response withCode(int code) {
-        this.code = code;
+        this.setCode(code);
         return this;
     }
 
     /**
      * Sets the body to the given String and returns this.
-     * @param code the desired body (preferrably as a String containing JSON).
+     * @param body the desired body (preferrably as a String containing JSON).
      * @return the Response object with the new body.
      */
     public Response withBody(String body) {
-        this.body = body;
+        this.setBody(body);
+        return this;
+    }
+
+    /**
+     * Sets the body to the string representation of the given JSON and returns
+     * this.
+     * @param code the desired body as a JSONObject
+     * @return the Response object with the new body.
+     */
+    public Response withBody(JSONObject body) {
+        this.setBody(body.toString());
         return this;
     }
 
     /**
      * Sets the headers table to the given hashtable and returns this.
      * This hashtable should contain only key-value pairs of HTTP headers.
-     * @param code the desired headers table.
+     * @param headers the desired headers table.
      * @return the Response object with the new headers.
      */
     public Response withHeaders(Hashtable<String, Object> headers) {
-        this.headers = headers;
+        this.setHeaders(headers);
         return this;
     }
 
@@ -72,7 +85,7 @@ public class Response {
      * @return the Response object with the new header.
      */
     public Response withHeader(String key, Object value) {
-        this.headers.put(key, value);
+        this.setHeader(key, value);
         return this;
     }
 
@@ -82,7 +95,7 @@ public class Response {
      * @return the Response object with the Access-Control-Allow-Methods header set to "GET".
      */
     public Response withAllowGetMethodHeader() {
-        this.headers.put("Access-Control-Allow-Methods", "GET");
+        this.setHeader("Access-Control-Allow-Methods", "GET");
         return this;
     }
 
@@ -92,7 +105,7 @@ public class Response {
      * @return the Response object with the Access-Control-Allow-Methods header set to "POST".
      */
     public Response withAllowPostMethodHeader() {
-        this.headers.put("Access-Control-Allow-Methods", "POST");
+        this.setHeader("Access-Control-Allow-Methods", "POST");
         return this;
     }
 
@@ -102,7 +115,27 @@ public class Response {
      * @return the Response object with the Access-Control-Allow-Methods header set to "*".
      */
     public Response withAllowAllMethodsHeader() {
-        this.headers.put("Access-Control-Allow-Methods", "*");
+        this.setHeader("Access-Control-Allow-Methods", "*");
+        return this;
+    }
+
+    /**
+     * Adds the Access-Control-Allow-Origin header to the headers table with
+     * the value "*", then returns this.
+     * @return the Response object with the Access-Control-Allow-Origin header set to "*"
+     */
+    public Response withAllowOriginAllHeader() {
+        this.setHeader("Access-Control-Allow-Origin", "*");
+        return this;
+    }
+
+    /**
+     * Adds the Content-Type header to the headers table with the value 
+     * "application/json", then returns this.
+     * @return the Response object with the Content-Type header set to "application/json".
+     */
+    public Response withContentTypeJSONHeader() {
+        this.setHeader("Content-Type", "application/json");
         return this;
     }
 
@@ -154,14 +187,15 @@ public class Response {
     }
 
     /**
-     * Converts this object into a spark response object.
-     * See {@link spark.Response}.
+     * Copies the body, headers, and response code to the given Spark response.
+     * The responseShell is modified by this method, so the return value is not actually
+     * necessary, but it is returned for your convenience.
      * @param responseShell A spark response object to modify. This is needed
      *                      because the <code>new spark.Response()</code> 
      *                      constructor is not visible.
      * @return the {@link spark.Response} object with all of the data from this object.
      */
-    public spark.Response asSparkResponse(spark.Response responseShell) {
+    public spark.Response dumpToSparkResponse(spark.Response responseShell) {
         responseShell.status(this.code);
         headers.forEach((key, value) -> {
             responseShell.header(key, value.toString());
