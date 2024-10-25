@@ -54,7 +54,7 @@ public class Mongo {
 
     /**
      * Gets all documents from the posts collection and puts them in an ArrayList.
-     * @return an ArrayList of JSON strings from MongoDB
+     * @return a new Respobse object containing all posts as JSON in the body.
      */
     public Response getAllPosts() {
         try {
@@ -62,7 +62,6 @@ public class Mongo {
             ArrayList<String> docsJSON = new ArrayList<String>();
             docs.forEach(doc -> docsJSON.add(doc.toJson()));
 
-            // TODO: update javadoc to reflect new return value
             return new Response().withCode(200).withAllowGetMethodHeader().withBody("{\"posts\": " + docsJSON.toString() + "}");
         }
         catch(Exception e) {
@@ -74,7 +73,8 @@ public class Mongo {
     /**
      * Gets a post that was posted on the given datestring
      * @param dateString The datestring to search for formatted MMDDYY, i.e. 092123
-     * @return The JSON string returned from the MongoDB posts collection
+     * @return a new Response object where the body is the JSON string returned 
+     *         from the MongoDB posts collection
      */
     public Response getPost(String dateString) {
         try {
@@ -84,7 +84,6 @@ public class Mongo {
                 return new Response().withCode(400).withAllowGetMethodHeader().withBody("{\"error\": \"A post with the dateString " + dateString + " could not be found.\"}");
             }
 
-            // TODO: update javadoc to reflect new return value
             return new Response().withCode(200).withAllowGetMethodHeader().withBody(doc.toJson());
         }
         catch(Exception e) {
@@ -96,7 +95,8 @@ public class Mongo {
     /**
      * Gets an image in base64 from the GridFS bucket stored in the MongoDB database
      * @param oid the hex string _id of the image to get
-     * @return a base64 encoded string image (WITH leading data URL format, i.e. "data:image/[format];base64,")
+     * @return a new Response object with a base64 encoded string image (WITH leading data URL format, 
+     *         i.e. "data:image/[format];base64,") as the body
      */
     public Response getImage(String oid) {
         try {
@@ -125,7 +125,7 @@ public class Mongo {
      * Uploads an image from a base64 string with a given filename to the GridFS bucket stored in the MongoDB database
      * @param imageb64 the base64 encoded image (WITHOUT leading data URL format, i.e. "data:image/[format];base64,")
      * @param fileName the filename to associate with the file, i.e. "file.jpeg"
-     * @return the hex string _id of the inserted image
+     * @return a new Response object with the hex string _id of the inserted image as the body
      */
     public Response postImage(String imageb64, String fileName, Boolean featured) {
         try {
@@ -159,7 +159,7 @@ public class Mongo {
      * @param dateString a datestring formatted mmddyy, i.e. 092123 for September 21, 2023
      * @param imageIDs a JSON array of hex string _ids, i.e. ["65128e7bf44ec02f9eac0f66", "65128e7bf44ec02f9eac0f67", "65128e7bf44ec02f9eac0f68"]
      * @param description a description of the day's meeting
-     * @return the hex string _id of the inserted post document
+     * @return a new Response object with the hex string _id of the inserted post document as the body
      */
     public Response putPost(String dateString, JSONArray imageIDs, String description) {
         try {
@@ -213,7 +213,7 @@ public class Mongo {
 
     /**
      * Creates a random eight-character string that will serve as an access token for verified users.
-     * @return the random eight-character access token.
+     * @return a Response object containing the random eight-character access token as the body.
      */
     public Response createToken(String username) {
         Random generator = new Random();

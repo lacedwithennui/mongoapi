@@ -95,7 +95,7 @@ public class Routes {
                     }
                     else {
                         httputils.Response.unauthorizedError()
-                                .withBody("{\"error\": \"Username and/or password are incorrect.\"}")
+                                .withBody(new JSONObject().put("error", "Username and/or password are incorrect."))
                                 .dumpToSparkResponse(response);
                     }
                     return response.body();
@@ -119,7 +119,7 @@ public class Routes {
                     }
                     else {
                         httputils.Response.unauthorizedError()
-                                .withBody("{\"error\": \"Your session is invalid. Please log in again.\"}")
+                                .withBody(new JSONObject().put("error", "Your session is invalid. Please log in again."))
                                 .dumpToSparkResponse(response);
                         return response.body();
                     }
@@ -137,7 +137,7 @@ public class Routes {
                 for(RouteMatch route : Spark.routes()) {
                     json.put(new JSONObject().put("url", route.getMatchUri()).put("method", route.getHttpMethod()));
                 }
-                new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json.toString()).dumpToSparkResponse(response);
+                new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json).dumpToSparkResponse(response);
                 return response.body();
             }
         };

@@ -1,6 +1,7 @@
 package httputils;
 import java.util.Hashtable;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class Response {
@@ -63,6 +64,41 @@ public class Response {
      */
     public Response withBody(JSONObject body) {
         this.setBody(body.toString());
+        return this;
+    }
+
+    /**
+     * Sets the body to the string representation of the given JSON and returns
+     * this.
+     * @param code the desired body as a JSONArray
+     * @return the Response object with the new body.
+     */
+    public Response withBody(JSONArray body) {
+        this.setBody(body.toString());
+        return this;
+    }
+
+    /**
+     * Sets the body to json containing error text.
+     * @param userFriendlyErrorMessage
+     * @param logMessage
+     * @return
+     */
+    public Response withErrorBody(String userFriendlyErrorMessage, String logMessage) {
+        this.setBody(new JSONObject()
+                .put("error", userFriendlyErrorMessage)
+                .put("fullError", logMessage)
+                .toString()
+        );
+        return this;
+    }
+
+    public Response withErrorBody(String userFriendlyErrorMessage) {
+        this.setBody(new JSONObject()
+                .put("error", userFriendlyErrorMessage)
+                .put("fullError", "")
+                .toString()
+        );
         return this;
     }
 
@@ -209,7 +245,7 @@ public class Response {
      * @return a generic 500 error with the Java exception message as the body.
      */
     public static Response defaultServerError(Exception e) {
-        return new Response().withBody("{\"error\": " + e.getMessage() + "}");
+        return new Response().withBody(new JSONObject().put("error", e.getMessage()));
     }
 
     /**
@@ -217,6 +253,6 @@ public class Response {
      *         or logged in with invalid credentials)
      */
     public static Response unauthorizedError() {
-        return new Response().withCode(401).withBody("{\"error\": \"401: You do not have authorization to view or edit this information.\"}");
+        return new Response().withCode(401).withBody(new JSONObject().put("error", "401: You do not have authorization to view or edit this information."));
     }
 }
