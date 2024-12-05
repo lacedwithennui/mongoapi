@@ -9,3 +9,5 @@ bin
 .idea
 
 Credentials.java
+
+.DS_Store

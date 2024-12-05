@@ -1,20 +1,20 @@
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import spark.Request;
 import spark.Response;
 import spark.Route;
+import spark.Spark;
+import spark.routematch.RouteMatch;
 
 public class Routes {
-    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck;
+    public final Route routeDate, routeAll, routeImage, routeUploadImage, routeUploadPost, routeOptions, routeAuth, routeAuthCheck, routeEndpoints;
     public Routes(Mongo mongo, Crypto auth) {
         // Returns the post that corresponds with the given date.
         this.routeDate = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.status(200);
-                response.body(mongo.getPost(request.params("date")));
-                response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
+                mongo.getPost(request.params("date")).dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -22,10 +22,7 @@ public class Routes {
         this.routeAll = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.status(200);
-                response.body("{\"posts\": " + mongo.getAllPosts().toString() + "}");
-                response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
+                mongo.getAllPosts().dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -33,10 +30,7 @@ public class Routes {
         this.routeImage = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.status(200);
-                response.body(mongo.getImage(request.params("oidString")));
-                response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
+                mongo.getImage(request.params("oidString")).dumpToSparkResponse(response);
                 return response.body();
             }
         };
@@ -46,16 +40,11 @@ public class Routes {
             public Object handle(Request request, Response response) {
                 if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
                     JSONObject json = new JSONObject(request.body());
-                    String id = mongo.putImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured"));
-                    response.status(200);
-                    response.body("{\"uploadedID\": \"" + id + "\"}");
+                    mongo.postImage(json.get("data").toString(), json.get("fileName").toString(), json.getBoolean("featured")).dumpToSparkResponse(response);
                 }
                 else {
-                    response.status(401);
-                    response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
+                    httputils.Response.unauthorizedError().dumpToSparkResponse(response);
                 }
-                response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "GET");
                 return response.body();
             }
         };
@@ -63,24 +52,19 @@ public class Routes {
         this.routeUploadPost = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.header("Access-Control-Allow-Origin", "*");
                 mongo.deleteExpired();
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
-                        response.status(200);
-                        
                         JSONObject json = new JSONObject(request.body());
-                        String id = mongo.putPost(json.getString("dateString"), json.getJSONArray("images"), json.getString("description"));
-                        response.body("{\"uploadedID\": \"" + id + "\"}");
+                        mongo.putPost(json.getString("dateString"), json.getJSONArray("images"), json.getString("description")).dumpToSparkResponse(response);
                     }
                     else {
-                        response.status(401);
-                        response.body("{\"error\": \"401: You do not have authorization to view this information.\"}");
+                        httputils.Response.unauthorizedError().dumpToSparkResponse(response);
                     }
                 }
                 catch(Exception e) {
                     e.printStackTrace();
-                    response.body("{\"error\": \"" + e.getMessage() + "\"}");
+                    httputils.Response.defaultServerError(e);
                 }
                 return response.body();
             }
@@ -89,12 +73,11 @@ public class Routes {
         this.routeOptions = new Route() {
             @Override
             public Object handle(Request request, Response response) {
-                response.header("Access-Control-Allow-Origin", "*");
-                response.header("Access-Control-Allow-Methods", "*");
-                response.header("Access-Control-Allow-Headers", "Authorization");
-                response.header("Access-Control-Allow-Credentials", "true");
-                response.status(200);
-                return "";
+                new httputils.Response().withCode(200)
+                    .withAllowAllMethodsHeader()
+                    .withHeader("Access-Control-Allow-Headers", "Authorization")
+                    .withHeader("Access-Control-Allow-Credentials", "true").dumpToSparkResponse(response);
+                return response.body();
             }
         };
         // Checks whether the given encrypted username and password correspond with a user in the database.
@@ -103,24 +86,24 @@ public class Routes {
             @Override
             public Object handle(Request request, Response response) {
                 mongo.deleteExpired();
-                response.header("Access-Control-Allow-Origin", "*");
                 try {
                     String creds = auth.decrypt(request.headers("authorization").substring("Basic ".length()));
                     String uname = creds.split(":")[0];
                     String pword = creds.split(":")[1];
                     if(mongo.checkCredentials(uname, pword) || mongo.checkCredentials(uname, pword)) {
-                        response.status(200);
-                        return "{\"token\": \"" + mongo.createToken(uname) + "\"}";
+                        mongo.createToken(uname).dumpToSparkResponse(response);
                     }
                     else {
-                        response.status(401);
-                        return "{\"error\": \"401: Wrong username or password.\"}";
+                        httputils.Response.unauthorizedError()
+                                .withBody(new JSONObject().put("error", "Username and/or password are incorrect."))
+                                .dumpToSparkResponse(response);
                     }
+                    return response.body();
                 }
                 catch(Exception e) {
                     e.printStackTrace();
-                    response.status(500);
-                    return "{\"error\": \"" + e.getMessage() + "\"}";
+                    httputils.Response.defaultServerError(e).dumpToSparkResponse(response);
+                    return response.body();
                 }
             }
         };
@@ -129,22 +112,33 @@ public class Routes {
             @Override
             public Object handle(Request request, Response response) {
                 mongo.deleteExpired();
-                response.header("Access-Control-Allow-Origin", "*");
                 try {
                     if(mongo.checkToken(request.headers("Authorization").substring("Bearer ".length()))) {
-                        response.status(200);
-                        return "{\"status\": \"ok\"}";
+                        new httputils.Response().withCode(200).dumpToSparkResponse(response);
+                        return response.body();
                     }
                     else {
-                        response.status(401);
-                        return "{\"error\": \"401: Wrong username or password.\"}";
+                        httputils.Response.unauthorizedError()
+                                .withBody(new JSONObject().put("error", "Your session is invalid. Please log in again."))
+                                .dumpToSparkResponse(response);
+                        return response.body();
                     }
                 }
                 catch(Exception e) {
                     e.printStackTrace();
-                    response.status(500);
-                    return "{\"error\": \"" + e.getMessage() + "\"}";
+                    httputils.Response.defaultServerError(e).dumpToSparkResponse(response);
+                    return response.body();
                 }
+            }
+        };
+        this.routeEndpoints = new Route() {
+            public Object handle(Request request, Response response) {
+                JSONArray json = new JSONArray();
+                for(RouteMatch route : Spark.routes()) {
+                    json.put(new JSONObject().put("url", route.getMatchUri()).put("method", route.getHttpMethod()));
+                }
+                new httputils.Response().withCode(200).withAllowGetMethodHeader().withBody(json).dumpToSparkResponse(response);
+                return response.body();
             }
         };
     }

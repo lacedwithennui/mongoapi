@@ -32,6 +32,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.InsertOneResult;
 
+import httputils.Response;
+
 public class Mongo {
     private ConnectionString connectionString = Credentials.connectionString;
     private MongoClientSettings clientSettings = MongoClientSettings.builder().applyConnectionString(connectionString)
@@ -52,59 +54,70 @@ public class Mongo {
 
     /**
      * Gets all documents from the posts collection and puts them in an ArrayList.
-     * @return an ArrayList of JSON strings from MongoDB
+     * @return a new Respobse object containing all posts as JSON in the body.
      */
-    public ArrayList<String> getAllPosts() {
+    public Response getAllPosts() {
         try {
             FindIterable<Document> docs = db.getCollection("posts").find();
             ArrayList<String> docsJSON = new ArrayList<String>();
             docs.forEach(doc -> docsJSON.add(doc.toJson()));
-            return docsJSON;
+
+            return new Response().withCode(200).withAllowGetMethodHeader().withBody("{\"posts\": " + docsJSON.toString() + "}");
         }
         catch(Exception e) {
-            System.out.println(e);
-            return new ArrayList<String>();
+            e.printStackTrace();
+            return new Response().withBody("{\"error\": " + e + "}");
         }
     }
 
     /**
      * Gets a post that was posted on the given datestring
      * @param dateString The datestring to search for formatted MMDDYY, i.e. 092123
-     * @return The JSON string returned from the MongoDB posts collection
+     * @return a new Response object where the body is the JSON string returned 
+     *         from the MongoDB posts collection
      */
-    public String getPost(String dateString) {
+    public Response getPost(String dateString) {
         try {
-            
             MongoCollection<Document> posts = db.getCollection("posts");
-            String doc = posts.find(Filters.eq("dateString", dateString)).first().toJson();
-            return doc;
+            Document doc = posts.find(Filters.eq("dateString", dateString)).first();
+            if(doc == null) {
+                return new Response().withCode(400).withAllowGetMethodHeader().withBody("{\"error\": \"A post with the dateString " + dateString + " could not be found.\"}");
+            }
+
+            return new Response().withCode(200).withAllowGetMethodHeader().withBody(doc.toJson());
         }
         catch(Exception e) {
-            System.out.println(e);
-            return "";
+            e.printStackTrace();
+            return new Response().withBody("{\"error\": " + e + "}");
         }
     }
 
     /**
      * Gets an image in base64 from the GridFS bucket stored in the MongoDB database
      * @param oid the hex string _id of the image to get
-     * @return a base64 encoded string image (WITH leading data URL format, i.e. "data:image/[format];base64,")
+     * @return a new Response object with a base64 encoded string image (WITH leading data URL format, 
+     *         i.e. "data:image/[format];base64,") as the body
      */
-    public String getImage(String oid) {
+    public Response getImage(String oid) {
         try {
-            
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             GridFSFile fileToDownload = bucket.find(Filters.eq("_id", new BsonObjectId(new ObjectId(oid)))).first();
-            bucket.downloadToStream(new ObjectId(oid), outputStream);
+            
+            if(fileToDownload == null) {
+                return new Response().withCode(400).withAllowGetMethodHeader().withBody("{\"error\": \"An image with the oid " + oid + " could not be found.\"}");
+            }
 
+            bucket.downloadToStream(new ObjectId(oid), outputStream);
             String imageb64 = outputStream.toString();
-            return "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\":" + fileToDownload.getMetadata().get("featured") + ", \"data\": \"" + imageb64 + "\"}";
+            String body = "{\"fileName\": \"" + fileToDownload.getFilename() + "\", \"featured\": " + fileToDownload.getMetadata().get("featured") + ", \"data\": \"" + imageb64 + "\"}";
+            outputStream.close();
+
+            return new Response().withCode(200).withAllowGetMethodHeader().withBody(body);
         }
         catch (Exception e) {
             e.printStackTrace();
-            System.out.println(e);
-            return "";
+            return new Response().withBody("{\"error\": " + e + "}");
         }
     }
 
@@ -112,11 +125,10 @@ public class Mongo {
      * Uploads an image from a base64 string with a given filename to the GridFS bucket stored in the MongoDB database
      * @param imageb64 the base64 encoded image (WITHOUT leading data URL format, i.e. "data:image/[format];base64,")
      * @param fileName the filename to associate with the file, i.e. "file.jpeg"
-     * @return the hex string _id of the inserted image
+     * @return a new Response object with the hex string _id of the inserted image as the body
      */
-    public String putImage(String imageb64, String fileName, Boolean featured) {
+    public Response postImage(String imageb64, String fileName, Boolean featured) {
         try {
-            
             GridFSBucket bucket = GridFSBuckets.create(db, "images");
             MongoCollection<Document> imagesCollection = db.getCollection("images.files");
             GridFSUploadOptions options = new GridFSUploadOptions().metadata(new Document("featured", featured));
@@ -133,12 +145,12 @@ public class Mongo {
                 bucket.delete(id);
             }
             id = bucket.find(query).first().getObjectId();
-            return id.toHexString();
+
+            return new Response().withCode(200).withAllowPostMethodHeader().withBody("{\"uploadedID\": \"" + id.toHexString() + "\"}");
         }
         catch(Exception e) {
-            System.out.println(e);
-            // TODO: better error handling
-            return "Error" + e;
+            e.printStackTrace();
+            return new Response().withBody("{\"error\": " + e + "}");
         }
     }
 
@@ -147,9 +159,9 @@ public class Mongo {
      * @param dateString a datestring formatted mmddyy, i.e. 092123 for September 21, 2023
      * @param imageIDs a JSON array of hex string _ids, i.e. ["65128e7bf44ec02f9eac0f66", "65128e7bf44ec02f9eac0f67", "65128e7bf44ec02f9eac0f68"]
      * @param description a description of the day's meeting
-     * @return the hex string _id of the inserted post document
+     * @return a new Response object with the hex string _id of the inserted post document as the body
      */
-    public String putPost(String dateString, JSONArray imageIDs, String description) {
+    public Response putPost(String dateString, JSONArray imageIDs, String description) {
         try {
             ArrayList<BsonObjectId> ids = new ArrayList<BsonObjectId>();
             for(int i = 0; i < imageIDs.length(); i++) {
@@ -158,11 +170,12 @@ public class Mongo {
             
             MongoCollection<Document> posts = db.getCollection("posts");
             InsertOneResult result = posts.insertOne(new Document("dateString", dateString).append("images", new BsonArray(ids)).append("description", description));
-            return result.getInsertedId().asObjectId().getValue().toHexString();
+
+            return new Response().withCode(200).withAllowPostMethodHeader().withBody("{\"uploadedID\": \"" + result.getInsertedId().asObjectId().getValue().toHexString() + "\"}");
         }
         catch(Exception e) {
-            System.out.println(e);
-            return "Error" + e;
+            e.printStackTrace();
+            return new Response().withBody("{\"error\": " + e + "}");
         }
     }
 
@@ -175,7 +188,6 @@ public class Mongo {
     public boolean checkCredentials(String uname, String pword) {
         boolean valid = false;
         try {
-            
             MongoCollection<Document> auth = db.getCollection("auth");
             Document creds = auth.find().first();
             Set<String> keys = creds.keySet();
@@ -201,9 +213,9 @@ public class Mongo {
 
     /**
      * Creates a random eight-character string that will serve as an access token for verified users.
-     * @return the random eight-character access token.
+     * @return a Response object containing the random eight-character access token as the body.
      */
-    public String createToken(String username) {
+    public Response createToken(String username) {
         Random generator = new Random();
         long seed = generator.nextInt(10000) * username.hashCode();
         generator.setSeed(seed);
@@ -212,15 +224,16 @@ public class Mongo {
             .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
             .toString();
         try {
-            
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.push("activeSessions",
                     new Document("token", generatedString).append("dateTime", new BsonDateTime(new Date().getTime())).append("username", username)));
+
+            return new Response().withCode(200).withAllowGetMethodHeader().withBody("{\"token\": \"" + generatedString + "\"}");
         }
         catch(Exception e) {
             e.printStackTrace();
+            return new Response().withBody("{\"error\": " + e + "}");
         }
-        return generatedString;
     }
 
     /**
@@ -231,10 +244,12 @@ public class Mongo {
     public boolean checkToken(String token) {
         boolean valid = false;
         try {
-            
             MongoCollection<Document> auth = db.getCollection("auth");
             Document creds = auth.find().first();
+
+            @SuppressWarnings("unchecked")
             ArrayList<Document> active = (ArrayList<Document>) creds.get("activeSessions");
+
             for(Document session : active) {
                 if(session.get("token").equals(token)) {
                     valid = true;
@@ -252,7 +267,6 @@ public class Mongo {
      */
     public void deleteExpired() {
         try {
-            
             MongoCollection<Document> auth = db.getCollection("auth");
             auth.findOneAndUpdate(Filters.empty(), Updates.pull("activeSessions",
                     Filters.lt("dateTime", new BsonDateTime(new Date().getTime() - 3 * 60 * 60 * 1000)))); // 3 * 60 * 60 * 1000 = 3 hours
